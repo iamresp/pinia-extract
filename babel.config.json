@@ -1,0 +1,21 @@
+{
+  "ignore": ["src/types.ts"],
+  "presets": [
+    [
+      "@babel/preset-env",
+      {
+        "useBuiltIns": "entry",
+        "corejs": "3.22",
+        "modules": false
+      }
+    ],
+    "@babel/preset-typescript"
+  ],
+  "env": {
+    "commonjs": {
+      "plugins": [
+        "@babel/transform-modules-commonjs"
+      ]
+    }
+  }
+}

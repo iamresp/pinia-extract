@@ -1,0 +1,12 @@
+{
+  "preset": "ts-jest",
+  "collectCoverage": true,
+  "coverageDirectory": "./coverage",
+  "globals": {
+    "ts-jest": {
+      "tsconfig": "./test/tsconfig.json"
+    }
+  },
+  "testEnvironment": "jsdom",
+  "testRegex": "(/test/.+\\.test\\.ts)$"
+}
