@@ -196,6 +196,39 @@ describe("useGetter", () => {
         mount(component);
     });
 
+    test("action call modifies getter value", () => {
+
+        const useStore = defineStore("store", {
+            state: () => ({
+                a: 1,
+            }),
+        });
+
+        const store = useStore();
+
+        const setA = store.defineAction(
+            function (a: number) {
+                this.a = a;
+            },
+        );
+        const getter = store.defineGetter((state: TSimpleState) => state.a);
+
+        const component = {
+            setup () {
+                const code = useGetter(getter);
+
+                expect(code.value).toBe(1);
+                setA(10);
+                expect(code.value).toBe(10);
+
+                return {code};
+            },
+            template: "{{code}}",
+        };
+
+        mount(component);
+    });
+
     test("externally created action as setter", () => {
 
         const useStore = defineStore("store", {
@@ -218,6 +251,8 @@ describe("useGetter", () => {
         const component = {
             setup () {
                 const code = useGetter(getter, actionSpy, 20);
+
+                expect(code.value).toBe(1);
 
                 code.value = 10;
 
