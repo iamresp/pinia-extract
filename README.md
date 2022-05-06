@@ -30,37 +30,41 @@ declare module "pinia" {
 }
 ```
 
-When it's needed to define actions and getters before app is initialized, `withExtract` function can be used. It connects Pinia Extract Plugin to the Pinia instance (newly created or passed as an argument) and instantly activates it.
-
-```typescript
-import {createPinia} from "pinia";
-import {withExtract} from "pinia-extract";
-import {createApp} from "vue";
-
-const pinia = withExtract(); // new instance is created, Pinia Extract Plugin is connected and activated
-const otherPinia = createPinia();
-
-withExtract(otherPinia); // Pinia Extract Plugin is connected and activated on existing Pinia instance
-
-// you still need to connect Pinia instance, existing or created by withExtract, to app
-// but it can be done after defining external getters and actions safely
-const app = createApp({});
-
-app.use(pinia);
-```
-
 ## External vs. Internal
 
 By default, actions and getters can be defined for Pinia store in the store object itself. This works well for compact stores, but may appear to be a problem when it comes to stores with tens or even hundreds of actions or getters — then we have an thousands-liner object that is difficult to read and maintain.
 
 In other state management libraries (Vuex, Redux) it is possible to define actions outside of store — and this is really helpful in large scale projects. This library adds the possibility to do so for Pinia.
 
+## Postponed definitions
+
+Normally Pinia stores are being initialized only after Pinia instance is activated, potentially causing errors on attempt to use some store before Pinia's installation.
+
+In other words, when we create separate files for actions or getters and just try to use store definition composable (result of `defineStore`) to get definition functions, most likely first `defineGetter` / `defineAction` call will end up with error thrown.
+
+To avoid this, Pinia Extract provides `postponed` function. It takes store definition composable and creates a wrapper over this store, that exposes `defineAction` and `defineGetter` which both work at any time before or after Pinia is initialized.
+
+As function name supposes, definitions made by stores wrapped with it are postponed: until Pinia is initialized, external actions and getters defined with postponed defintions are disabled. Getters always return `undefined`, actions don't actually run. They start work normal way right after Pinia is installed:
+
+```typescript
+pinia.use(PiniaExtractPlugin); // Pinia Extract must be installed first
+app.use(pinia); // then Pinia itself is installed for current app
+app.mount("#app"); // and finally app is mounted
+```
+
+If you mount your app **after** installing Pinia and Pinia Extract, then external actions and getters created with Pinia Extract will work right in every component's `created` lifecycle stage.
+
+Currently `postponed` is a recommended way to define external actions and getters with Pinia Extract.
+
 ## External actions
 
 External actions work the same way as native actions do:
 
 ```typescript
-const store = useSomeStore();
+import {postponed} from "pinia-extract";
+import {useSomeStore} from "./store";
+
+const store = postponed(useSomeStore);
 
 export const requestGetCar = store.defineAction(
     async function (id: string) {
@@ -70,24 +74,15 @@ export const requestGetCar = store.defineAction(
 );
 ```
 
-`defineAction` should always be called as a property of store. Extracting it with destructuring assignment will cause it throw a binding error.
+`defineAction` should always be called as a property of store (either normal or wrapped with `postponed`). Extracting it with destructuring assignment will cause it throw a binding error.
 
-The single argument of `defineAction` is an action function itself. If it is defined as classic function, it has a context of store same as native actions do.
+The single argument of `defineAction` is an action function itself. It must be a classic function to have a context of store.
 
-Since a store reference must always exist in a scope of `defineAction` usage, it provides an alternative approach to define a contextless arrow function actions:
-
-```typescript
-const store = useSomeStore(); // we need to have a reference to the store if we want to call defineAction
-
-export const setCar = store.defineAction((car: TCar) => {
-    store.car = car;
-});
-```
-
-Regardless of whether an external action was defined as a classic or arrow function, the result is always a bind-safe independent function that can be safely called or passed as an argument to other functions.
+The result of `defineAction` is always a bind-safe independent function that can be safely called or passed as an argument to other functions.
 
 ```typescript
 await requestGetCar(id); // that's it!
+someFunction(requestGetCar); // no binding errors
 ```
 
 ## External getters
@@ -95,17 +90,21 @@ await requestGetCar(id); // that's it!
 Technically all getters (native and external) are functions that take state as an argument and return data from it:
 
 ```typescript
-const store = useSomeStore();
+import {postponed} from "pinia-extract";
+import {useSomeStore} from "./store";
+
+const store = postponed(useSomeStore);
 export const getCar = store.defineGetter((state: TState): TCar => state.car);
 ```
 
 Alongside with `defineAction`, Pinia Extract Plugin provides `defineGetter` function that is explicitly connected to each store. It can work in two different ways. When `defineGetter` receives only one argument, it must be a *direct getter function* that takes a state as an argument and returns some data from this state:
 
 ```typescript
+import {postponed} from "pinia-extract";
 import {useStore} from "./store";
 
 // unlike `defineAction`, `defineGetter` can be extracted with destructuring assignment
-const {defineGetter} = useStore();
+const {defineGetter} = postponed(useStore);
 
 // direct getter - state argument, returns data from state
 export const getCustomer = defineGetter((state: TState) => state.customer);
@@ -118,9 +117,10 @@ Another way to define exernal getter is a bit more complex. It works similarly t
 `defineGetter` takes any amount of arguments. The last argument is always a *combiner function* that takes the exact amount of agruments as an amount of given input getters. Arguments of combiner function are return values of input getters, passed always in the same order as input getters.
 
 ```typescript
+import {postponed} from "pinia-extract";
 import {useStore} from "./store";
 
-const {defineGetter} = useStore();
+const {defineGetter} = postponed(useStore);
 
 // direct getter
 export const getCustomer = defineGetter((state: TState) => state.customer);
@@ -136,9 +136,9 @@ export const getCustomerName = defineGetter(
 /**
  * `getCustomerName` is still a function that takes state as an argument and return `state.customer.name`.
  * Combiner function above isn't exactly the getter itself. The difference with direct / native getters is that such
- * complex external getter will call its combiner and dependencies to retrieve required state data.
- * State instance passed to the `getCustomerName` on its call will also be passed further to `getCustomer` to retrieve
- * dependency data. Thus, state will be still a single source of truth for called getter and all of its dependencies.
+ * complex external getter calls its combiner and dependencies to retrieve required state data.
+ * State instance passed to the `getCustomerName` on its call is also passed further to `getCustomer` to retrieve
+ * dependency data. Thus, state is a single source of truth for called getter and all of its dependencies.
  */
 
 export const getCustomerJobTitle = defineGetter(
