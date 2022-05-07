@@ -1,6 +1,6 @@
 {
   "name": "pinia-extract",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "External actions and getters for Pinia.",
   "scripts": {
     "build": "yarn build:prod && yarn build:iife && yarn build:cjs && yarn build:es && yarn build:types",
