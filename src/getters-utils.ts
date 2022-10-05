@@ -90,7 +90,7 @@ const checkImmutability = <T>(value: T): value is TImmutable<T> => (
  * @returns {boolean} Is variable a ref of primitive value.
  */
 const isRefOfPrimitive = <T>(variable: T | Ref<T>): variable is Ref<T> => (
-    isRef(variable) && OBJECT_TYPES_TYPEOF_VALUES.includes(typeof variable.value)
+    isRef(variable) && !OBJECT_TYPES_TYPEOF_VALUES.includes(typeof variable.value)
 );
 
 /**
