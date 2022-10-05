@@ -32,9 +32,15 @@ declare module "pinia" {
 
 ## External vs. Internal
 
-By default, actions and getters can be defined for Pinia store in the store object itself. This works well for compact stores, but may appear to be a problem when it comes to stores with tens or even hundreds of actions or getters — then we have an thousands-liner object that is difficult to read and maintain.
+By default, actions and getters can be defined for Pinia store in the store object itself. This works well for compact stores — by the concept, store must be as much atomic as possible, containing a few of getters and actions. If you have an overgrown store, you most likely have to split it into multiple smaller ones.
+
+But sometimes, the project may grow this large that splitting a large store into several other stores loses sense. Probably this store is already a result of splitting some even larger one. Probably that larger one is a result of such division too. That's a barely realistic scenarios for most apps, but can be easily faced in enterprise apps with complex business logic.
 
 In other state management libraries (Vuex, Redux) it is possible to define actions outside of store — and this is really helpful in large scale projects. This library adds the possibility to do so for Pinia.
+
+## To use and not to use
+
+If you see a possibility to split your large store into several smaller stores, then you probably better save a build size and keep going without one more dependency. But if it starts to seem difficult at some point (e. g. it's hard to imagine already how to split the store as it's already logically atomic, but still large and hard to maintain) — you may find this library helpful.
 
 ## Postponed definitions
 
@@ -284,9 +290,9 @@ setup () {
     }
     const firstData = useGetterFactory(getterFactory, 1, true, "not"); // will be memoized
     const secondData = useGetterFactory(getterFactory, someRef); // will be memoized (with current ref value)
-    const secondData = useGetterFactory(getterFactory, handleSomething); // will NOT be memoized
-    const secondData = useGetterFactory(getterFactory, [1, 2, 3]); // will NOT be memoized
-    const secondData = useGetterFactory(getterFactory, {a: 5}); // will NOT be memoized
+    const thirdData = useGetterFactory(getterFactory, handleSomething); // will NOT be memoized
+    const fourthData = useGetterFactory(getterFactory, [1, 2, 3]); // will NOT be memoized
+    const fifthData = useGetterFactory(getterFactory, {a: 5}); // will NOT be memoized
     // ...
 }
 ```
